@@ -1,56 +1,36 @@
-<script>
-    // 1. INICIALIZAÇÃO DO BANCO DE DADOS PROFISSIONAL
-    const dbName = "RSI_Enterprise_DB";
-    let db;
-    const requestDB = indexedDB.open(dbName, 1);
-    
-    requestDB.onupgradeneeded = (e) => {
-        db = e.target.result;
-        if(!db.objectStoreNames.contains("vistorias")) {
-            db.createObjectStore("vistorias", { keyPath: "id" });
-        }
-    };
-    
-    requestDB.onsuccess = (e) => { 
-        db = e.target.result;
-        carregarHistorico(); 
-    };
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RSI - Carregando...</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        body { background: #0f0f12; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; }
+        .spinner { border: 4px solid #333; border-top: 4px solid #00b4d8; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-reload { background: #00b4d8; border: none; padding: 10px 20px; color: white; border-radius: 5px; cursor: pointer; display: none; }
+    </style>
+</head>
+<body>
+    <div class="spinner" id="spinner"></div>
+    <p id="status">Carregando sistema RSI...</p>
+    <button class="btn-reload" id="btn-reload" onclick="location.reload()">Tentar novamente</button>
 
-    // 2. FUNÇÃO OTIMIZADA PARA SALVAR VISTORIA
-    function salvarAlteracoesNoCRM() {
-        const vistoria = {
-            id: Date.now(),
-            data: document.getElementById('res-data').value,
-            serie: document.getElementById('res-serial').value,
-            modelo: document.getElementById('res-modelo').value,
-            km: document.getElementById('res-contador-total').value,
-            vistoriador: document.getElementById('res-vistoriador').value,
-            observacoes: document.getElementById('res-obs').value,
-            fotos: fotos // Suas fotos em base64 compactadas
+    <script>
+        // Esta parte do código força a transição para a vistoria real assim que tudo carregar
+        window.onload = function() {
+            setTimeout(() => {
+                // Se após 10 segundos não carregou, mostra o botão de erro
+                document.getElementById('btn-reload').style.display = 'block';
+                document.getElementById('status').innerText = "O carregamento demorou muito. Verifique sua conexão.";
+            }, 10000);
+
+            // Redireciona para o carregamento real do sistema após 2 segundos
+            setTimeout(() => {
+                window.location.href = "vistoria_v5.html"; // Mantenha o nome do arquivo que você usa no GitHub
+            }, 2000);
         };
-
-        const transaction = db.transaction(["vistorias"], "readwrite");
-        transaction.objectStore("vistorias").put(vistoria);
-        transaction.oncomplete = () => {
-            alert('✅ Salvo no banco de dados com segurança!');
-            carregarHistorico();
-        };
-    }
-
-    // 3. LIMPEZA SEGURA (SEM TRAVAR)
-    function limparBancoAntigo() {
-        if (!confirm('Deseja remover vistorias com mais de 30 dias?')) return;
-        const transaction = db.transaction(["vistorias"], "readwrite");
-        const store = transaction.objectStore("vistorias");
-        store.openCursor().onsuccess = (e) => {
-            const cursor = e.target.result;
-            if (cursor) {
-                // Lógica de data (30 dias)
-                cursor.continue();
-            }
-        };
-        alert("Limpeza concluída.");
-    }
-
-    // (Mantenha o restante das suas funções de Câmera aqui...)
-</script>
+    </script>
+</body>
+</html>
