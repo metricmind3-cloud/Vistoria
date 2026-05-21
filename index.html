@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RSI - Ultimate V5.1 (OCR Corrigido)</title>
+    <title>RSI - Ultimate V5.2 (Visão de Túnel OCR)</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -81,8 +81,8 @@
 <body>
 
     <header>
-        <button class="menu-btn" onclick="toggleSidebar()">☰ CRM / DADOS</button>
-        <span style="font-size: 0.9rem;">RSI ULTIMATE V5.1</span>
+        <button class="menu-btn" onclick="toggleSidebar()">☰ MENU</button>
+        <span style="font-size: 0.9rem;">RSI ULTIMATE V5.2</span>
         <div style="width: 50px;"></div>
     </header>
 
@@ -311,10 +311,11 @@
 
         function salvarMaquinaNoCRM() {
             const serialNum = document.getElementById('res-serial').value.toUpperCase().trim();
-            if(!serialNum || !db) return;
+            // Se o tecnico não digitou serial, cria um provisorio
+            const chaveSerial = serialNum || "SEM_SERIAL_" + Math.floor(Math.random() * 10000);
 
             const novaMaquina = {
-                serial: serialNum,
+                serial: chaveSerial,
                 data: new Date().toLocaleString('pt-BR'),
                 fornecedor: configVistoria.fornecedor,
                 lote: configVistoria.lote,
@@ -406,7 +407,6 @@
             
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Carimbo Antifraude
             ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
             ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
             ctx.fillStyle = "#2bc473";
@@ -414,7 +414,26 @@
             const timeStamp = new Date().toLocaleString('pt-BR');
             ctx.fillText(`AUDITORIA RSI | Data: ${timeStamp} | GPS: ${currentLocation}`, 15, canvas.height - 15);
 
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.70); 
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.80); 
+
+            // ==========================================
+            // LÓGICA DE VISÃO DE TÚNEL (CROPPING)
+            // ==========================================
+            let imgToProcess = dataUrl;
+            
+            // Se for passo de texto (Teste, Tela ou Serial), corta a imagem na faixa do gabarito amarelo
+            if (currentStep >= 1 && currentStep <= 3) {
+                const cropCanvas = document.createElement('canvas');
+                const cropCtx = cropCanvas.getContext('2d');
+                // O gabarito tem 35% da altura e fica centralizado
+                const cropHeight = canvas.height * 0.40;
+                const startY = (canvas.height - cropHeight) / 2;
+                
+                cropCanvas.width = canvas.width;
+                cropCanvas.height = cropHeight;
+                cropCtx.drawImage(canvas, 0, startY, canvas.width, cropHeight, 0, 0, canvas.width, cropHeight);
+                imgToProcess = cropCanvas.toDataURL('image/jpeg', 1.0);
+            }
 
             if (currentStep >= 4) {
                 fotos.push({ passo: `Avaria Extra #${fotos.length - 3}`, img: dataUrl });
@@ -429,42 +448,48 @@
                 fotos[currentStep] = { passo: checklist[currentStep].nome, img: dataUrl };
                 document.getElementById(`thumb-${currentStep}`).innerHTML = `<img src="${dataUrl}">`; 
                 document.getElementById(`thumb-${currentStep}`).classList.add('done');
-                processarImagemComIA(currentStep, dataUrl, canvas);
+                
+                // Envia a imagem CORTADA para o OCR, não a foto inteira.
+                processarImagemComIA(currentStep, imgToProcess, canvas);
                 currentStep++;
                 updateUI();
             }
         }
 
-        // ====== O NOVO SUPER EXTRATOR DE TEXTOS (OCR) ======
         async function processarImagemComIA(passoIdx, base64Image, canvasEl) {
             const statusBox = document.getElementById('ai-status');
             
             if(passoIdx === 1 || passoIdx === 2) {
                 if (!ocrWorker) return;
                 statusBox.style.display = 'block';
-                statusBox.innerText = "🤖 Extraindo contadores P&B e Color...";
+                statusBox.innerText = "🤖 Extraindo números do foco...";
                 const result = await ocrWorker.recognize(base64Image);
                 const textoRaw = result.data.text.toUpperCase();
                 
-                // Melhorando P&B (Ignora espaços como "B & W" ou "P & B")
-                const pbMatch = textoRaw.match(/(?:TOTAL\s*DE\s*PB|B\s*&\s*W\s*TOTAL|P\s*&\s*B|B\s*&\s*W|BLACK|MONO)[:.\s]*([A-Z]*\d[\d.,]{3,})/);
-                if(pbMatch) document.getElementById('res-contador-pb').value = pbMatch[1].replace(/[^0-9]/g, '');
-
-                // Melhorando COR (Procura "TOTAL DE COR" ou "COLOR TOTAL")
-                const colorMatch = textoRaw.match(/(?:TOTAL\s*DE\s*COR|COLOR\s*TOTAL|COPIAS\s*COLORIDAS|COLOR)[:.\s]*([A-Z]*\d[\d.,]{3,})/);
-                if(colorMatch) document.getElementById('res-contador-cor').value = colorMatch[1].replace(/[^0-9]/g, '');
-
-                // Tenta achar o Total Geral explicitamente, se não a soma resolve
-                const gerMatch = textoRaw.match(/(?:TOTAL\s*GERAL|TOTAL\s*SUM|GERAL)[:.\s]*([A-Z]*\d[\d.,]{3,})/);
-                if(gerMatch) document.getElementById('res-contador-total').value = gerMatch[1].replace(/[^0-9]/g, '');
+                // Puxa QUALQUER sequência numérica com mais de 3 dígitos da imagem focada
+                const todosOsNumeros = textoRaw.match(/\d[\d.,]{2,}/g) || [];
+                const numsLimpos = todosOsNumeros.map(n => n.replace(/[^0-9]/g, ''));
+                
+                if(numsLimpos.length > 0) {
+                    // Pega o maior número encontrado na tela como Totalizador Geral
+                    const maiorNum = Math.max(...numsLimpos);
+                    document.getElementById('res-contador-total').value = maiorNum;
+                    
+                    // Se achar mais de um número no display colorido, tenta distribuir
+                    if(numsLimpos.length >= 2) {
+                        document.getElementById('res-contador-pb').value = numsLimpos[0];
+                        if(numsLimpos.length >= 3) {
+                            document.getElementById('res-contador-cor').value = numsLimpos[1];
+                        }
+                    }
+                }
                 
                 statusBox.style.display = 'none';
-                processarSomaTotal();
             }
             
             if(passoIdx === 3) {
                 statusBox.style.display = 'block';
-                statusBox.innerText = "🤖 Lendo Etiqueta Traseira...";
+                statusBox.innerText = "🤖 Lendo Etiqueta Focada...";
                 
                 try {
                     if ('BarcodeDetector' in window) {
@@ -475,44 +500,18 @@
                             document.getElementById('res-serial').value = bestCode.replace(/[^A-Z0-9]/gi, '');
                         }
                     }
-                } catch(e) { console.log("Barcode nativo falhou."); }
+                } catch(e) {}
 
-                if (ocrWorker) {
+                if (ocrWorker && !document.getElementById('res-serial').value) {
                     const result = await ocrWorker.recognize(base64Image);
                     const texto = result.data.text.toUpperCase();
                     
-                    // Fallback para modelos comuns (ex: MP C6004SP)
-                    const modeloMatch = texto.match(/(?:MODEL|MOD|MODELO)[:.\s]*([A-Z0-9\s-]{4,12})/);
-                    if(modeloMatch) {
-                        document.getElementById('res-modelo').value = modeloMatch[1].trim();
-                    } else {
-                        const fallbackModelo = texto.match(/(?:MP|IM|PRO|SP|XC|M)\s*[C]?\d{3,4}[A-Z]*/);
-                        if(fallbackModelo) document.getElementById('res-modelo').value = fallbackModelo[0];
-                    }
-                    
-                    // Fallback Serial (Busca qualquer string alfanumerica de 9 a 13 digitos)
-                    if(!document.getElementById('res-serial').value) {
-                        const serialMatch = texto.match(/(?:SERIAL|S\/N|SN|NO)[:.\s]*([A-Z0-9]{7,15})/);
-                        if(serialMatch) {
-                            document.getElementById('res-serial').value = serialMatch[1];
-                        } else {
-                            const palavras = texto.replace(/[^A-Z0-9\n]/g, ' ').split(/\s+/);
-                            const provavelSerial = palavras.find(p => p.length >= 9 && p.length <= 13 && /[A-Z]/.test(p) && /[0-9]/.test(p));
-                            if(provavelSerial) document.getElementById('res-serial').value = provavelSerial;
-                        }
-                    }
+                    const palavras = texto.replace(/[^A-Z0-9\n]/g, ' ').split(/\s+/);
+                    // Busca texto misturado alfanumerico (ex: G736M51)
+                    const provavelSerial = palavras.find(p => p.length >= 7 && p.length <= 15 && /[0-9]/.test(p) && /[A-Z]/.test(p));
+                    if(provavelSerial) document.getElementById('res-serial').value = provavelSerial;
                 }
                 statusBox.style.display = 'none';
-            }
-        }
-
-        function processarSomaTotal() {
-            const pbVal = parseInt(document.getElementById('res-contador-pb').value) || 0;
-            const corVal = parseInt(document.getElementById('res-contador-cor').value) || 0;
-            const currentTotal = document.getElementById('res-contador-total').value;
-            // Só faz a soma se o OCR não tiver achado a palavra TOTAL escrita, e se já houver algo lido nos menores.
-            if((pbVal > 0 || corVal > 0) && (!currentTotal || currentTotal == "0" || currentTotal == "")) {
-                document.getElementById('res-contador-total').value = pbVal + corVal;
             }
         }
 
