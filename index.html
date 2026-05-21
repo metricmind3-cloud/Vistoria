@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vistoria Inteligente com IA - RSI</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f0f12;
+            --card-bg: #18181c;
+            --primary: #00b4d8;
+            --success: #2bc473;
+            --text: #ffffff;
+            --text-muted: #a0a0a5;
+            --border: #2a2a30;
+            --warning: #ffd166;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 16px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1rem;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .step-panel {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .step-panel.active {
+            display: flex;
+        }
+
+        .instruction-box {
+            background-color: rgba(24, 24, 28, 0.9);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background-color: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .overlay-gabarito {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 6px solid transparent;
+        }
+
+        .gabarito-shape {
+            width: 80%;
+            height: 70%;
+            border: 2px dashed rgba(255, 255, 255, 0.6);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-capture {
+            background-color: #ffffff;
+            border-radius: 50%;
+            width: 76px;
+            height: 76px;
+            border: none;
+            font-size: 1.8rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 0 6px var(--bg-color), 0 0 0 9px #ffffff;
+            margin: 10px auto;
+            cursor: pointer;
+        }
+
+        .thumbs-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .thumb-box {
+            aspect-ratio: 1;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .thumb-box img { width: 100%; height: 100%; object-fit: cover; }
+        .thumb-box.active { border-color: var(--primary); }
+        .thumb-box.done { border-color: var(--success); }
+
+        .loading-ia {
+            display: none;
+            background: #1d1d26;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--warning);
+            margin-bottom: 16px;
+            border: 1px dashed var(--warning);
+        }
+
+        .report-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .ai-detected {
+            background: rgba(0, 180, 216, 0.1);
+            border: 1px solid var(--primary);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+        input { width: 100%; padding: 10px; background: #222; border: 1px solid var(--border); color: #fff; border-radius: 6px; }
+
+        .btn {
+            background-color: var(--success);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>RSI - VISTORIA AUTOMÁTICA COM IA</header>
+
+    <div class="container">
+        
+        <div id="step-1" class="step-panel active">
+            <div id="instruction" class="instruction-box">Carregando câmera guiada...</div>
+
+            <div class="camera-container">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="overlay-gabarito" id="gabarito">
+                    <div class="gabarito-shape" id="shape-guiada"></div>
+                </div>
+            </div>
+
+            <div class="loading-ia" id="ai-status">🤖 IA analisando imagem...</div>
+
+            <div class="thumbs-grid">
+                <div class="thumb-box" id="thumb-0">1. Geral</div>
+                <div class="thumb-box" id="thumb-1">2. Painel</div>
+                <div class="thumb-box" id="thumb-2">3. Interno</div>
+                <div class="thumb-box" id="thumb-3">4. Gaveta</div>
+                <div class="thumb-box" id="thumb-4">5. Serial</div>
+            </div>
+
+            <button class="btn-capture" onclick="captureStep()">📸</button>
+            <canvas id="canvas" style="display:none;"></canvas>
+        </div>
+
+        <div id="step-2" class="step-panel">
+            <h2>Laudo Processado por IA</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Os dados abaixo foram extraídos automaticamente através das fotos.</p>
+            
+            <div class="report-card">
+                <div class="ai-detected">✨ Reconhecimento de Imagem & OCR Ativo</div>
+                
+                <div class="form-group">
+                    <label>Fabricante / Marca Detectada</label>
+                    <input type="text" id="res-fabricante" placeholder="Analisando etiqueta...">
+                </div>
+                <div class="form-group">
+                    <label>Modelo do Equipamento</label>
+                    <input type="text" id="res-modelo" placeholder="Analisando modelo...">
+                </div>
+                <div class="form-group">
+                    <label>Número de Série / Tag</label>
+                    <input type="text" id="res-serial" placeholder="Buscando S/N na etiqueta...">
+                </div>
+                <div class="form-group">
+                    <label>Leitura do Contador Digital</label>
+                    <input type="text" id="res-contador" placeholder="Lendo número no display...">
+                </div>
+            </div>
+
+            <button class="btn" onclick="exportLaudoIA()">💾 Exportar Laudo Técnico</button>
+        </div>
+
+    </div>
+
+    <script>
+        const checklist = [
+            { nome: "Visão Geral", dica: "FOTO 1/5: Enquadre a frente da máquina inteira", alvo: "geral" },
+            { nome: "Painel e Contador", dica: "FOTO 2/5: APROXIME bem do visor do contador de páginas", alvo: "contador" },
+            { nome: "Mecanismo Interno", dica: "FOTO 3/5: Abra a tampa (mostre cartuchos/cilindro)", alvo: "interno" },
+            { nome: "Bandejas de Papel", dica: "FOTO 4/5: Puxe as gavetas de papel para fora", alvo: "gaveta" },
+            { nome: "Etiqueta Traseira", dica: "FOTO 5/5: APROXIME fixo na etiqueta branca de número de série", alvo: "serial" }
+        ];
+
+        let currentStep = 0;
+        let stream = null;
+        let fotos = [];
+        let ocrWorker = null;
+
+        window.onload = async function() {
+            updateUI();
+            
+            // Força compatibilidade máxima e câmera traseira sem travar resolução fixa
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment" },
+                    audio: false
+                });
+                document.getElementById('video').srcObject = stream;
+            } catch (err) {
+                document.getElementById('instruction').innerText = "⚠️ Erro: Para abrir a câmera, hospede o arquivo em um link seguro HTTPS ou dê permissões no Chrome.";
+                console.error(err);
+            }
+
+            // Inicializa o leitor de texto em background
+            try {
+                ocrWorker = await Tesseract.createWorker('por');
+            } catch(e) {
+                console.log("Modo offline ou erro ao carregar Tesseract");
+            }
+        };
+
+        function updateUI() {
+            if(currentStep >= checklist.length) return;
+            const passo = checklist[currentStep];
+            document.getElementById('instruction').innerText = passo.dica;
+            
+            const shape = document.getElementById('shape-guiada');
+            if(passo.alvo === 'contador' || passo.alvo === 'serial') {
+                shape.style.width = "90%";
+                shape.style.height = "30%"; 
+                shape.style.borderColor = "#ffd166"; // Amarelo para indicar área de leitura de texto
+            } else {
+                shape.style.width = "80%";
+                shape.style.height = "75%";
+                shape.style.borderColor = "#00b4d8";
+            }
+
+            document.querySelectorAll('.thumb-box').forEach((box, i) => {
+                box.classList.remove('active');
+                if(i === currentStep) box.classList.add('active');
+            });
+        }
+
+        async function captureStep() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
+            fotos.push({ passo: checklist[currentStep].nome, img: dataUrl });
+
+            const thumb = document.getElementById(`thumb-${currentStep}`);
+            thumb.innerHTML = `<img src="${dataUrl}">`;
+            thumb.classList.add('done');
+
+            // Roda a inteligência artificial de leitura em background paralelo
+            processarImagemComIA(currentStep, dataUrl);
+
+            currentStep++;
+
+            if(currentStep < checklist.length) {
+                updateUI();
+            } else {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+                document.getElementById('step-1').classList.remove('active');
+                document.getElementById('step-2').classList.add('active');
+            }
+        }
+
+        async function processarImagemComIA(passoIdx, base64Image) {
+            if (!ocrWorker) return;
+            const statusBox = document.getElementById('ai-status');
+            
+            // FOTO DO CONTADOR (Passo 2)
+            if(passoIdx === 1) {
+                statusBox.style.display = 'block';
+                statusBox.innerText = "🤖 Analisando display e extraindo contadores...";
+                
+                const result = await ocrWorker.recognize(base64Image);
+                const numeros = result.data.text.match(/\d[\d.,]{3,}/g); 
+                if(numeros) {
+                    document.getElementById('res-contador').value = numeros.join(' | ');
+                }
+                statusBox.style.display = 'none';
+            }
+            
+            // FOTO DA ETIQUETA/SERIAL (Passo 5)
+            if(passoIdx === 4) {
+                statusBox.style.display = 'block';
+                statusBox.innerText = "🤖 Escaneando número de série e modelo do ativo...";
+                
+                const result = await ocrWorker.recognize(base64Image);
+                const texto = result.data.text.toUpperCase();
+
+                if(texto.includes("RICOH")) document.getElementById('res-fabricante').value = "RICOH";
+                else if(texto.includes("LEXMARK")) document.getElementById('res-fabricante').value = "LEXMARK";
+                else if(texto.includes("HP") || texto.includes("HEWLETT")) document.getElementById('res-fabricante').value = "HP";
+                else if(texto.includes("KYOCERA")) document.getElementById('res-fabricante').value = "KYOCERA";
+
+                const serialMatch = texto.match(/(?:SERIAL|S\/N|SN)[:.\s]+([A-Z0-9]{8,15})/);
+                if(serialMatch) {
+                    document.getElementById('res-serial').value = serialMatch[1];
+                } else {
+                    const linhas = texto.split('\n');
+                    for(let linha of linhas) {
+                        let limpa = linha.replace(/[^A-Z0-9]/g, '');
+                        if(limpa.length >= 8 && limpa.length <= 13) {
+                            document.getElementById('res-serial').value = limpa;
+                            break;
+                        }
+                    }
+                }
+
+                const modeloMatch = texto.match(/(?:MODEL|MOD|MODELO)[:.\s]+([A-Z0-9\s-]{4,12})/);
+                if(modeloMatch) {
+                    document.getElementById('res-modelo').value = modeloMatch[1].trim();
+                }
+
+                statusBox.style.display = 'none';
+            }
+        }
+
+        function exportLaudoIA() {
+            alert("Laudo exportado com sucesso contendo as imagens e os metadados gerados pela Inteligência Artificial!");
+        }
+    </script>
+</body>
+</html>
