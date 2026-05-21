@@ -3,20 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RSI - Ultimate V5.0 (CRM, GPS, Barcode & Excel)</title>
+    <title>RSI - Ultimate V5.1 (OCR Corrigido)</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
-            --bg-color: #0f0f12;
-            --card-bg: #18181c;
-            --primary: #00b4d8;
-            --success: #2bc473;
-            --danger: #ef476f;
-            --text: #ffffff;
-            --text-muted: #a0a0a5;
-            --border: #2a2a30;
-            --warning: #ffd166;
-            --sidebar-width: 280px;
+            --bg-color: #0f0f12; --card-bg: #18181c; --primary: #00b4d8; --success: #2bc473;
+            --danger: #ef476f; --text: #ffffff; --text-muted: #a0a0a5; --border: #2a2a30;
+            --warning: #ffd166; --sidebar-width: 280px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -89,7 +82,7 @@
 
     <header>
         <button class="menu-btn" onclick="toggleSidebar()">☰ CRM / DADOS</button>
-        <span style="font-size: 0.9rem;">RSI ULTIMATE V5</span>
+        <span style="font-size: 0.9rem;">RSI ULTIMATE V5.1</span>
         <div style="width: 50px;"></div>
     </header>
 
@@ -124,18 +117,15 @@
                         <option value="Lote">Recebimento por Lote (Várias Máquinas)</option>
                     </select>
                 </div>
-                
                 <div class="form-group">
                     <label>Fornecedor / Origem *</label>
                     <input type="text" id="fornecedor-nome" placeholder="Ex: Leilão Caixa, Locadora ABC">
                 </div>
-
                 <div class="form-group" id="box-nome-lote" style="display: none;">
                     <label>Identificação / Código do Lote *</label>
                     <input type="text" id="lote-nome" placeholder="Ex: LOTE-MAIO-01">
                 </div>
             </div>
-
             <button class="btn" onclick="confirmarConfiguracaoInicial()">Avançar para Câmera ➔</button>
         </div>
         
@@ -166,7 +156,7 @@
 
         <div id="step-2" class="step-panel">
             <h2>Laudo Finalizado</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Dados salvos no banco de dados seguro do aparelho.</p>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Verifique os dados ou digite manualmente caso falte algo.</p>
             
             <div class="btn-group">
                 <button class="btn" onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
@@ -190,25 +180,25 @@
 
                 <div class="form-group">
                     <label>Número de Série / Tag *</label>
-                    <input type="text" id="res-serial" placeholder="Identificando série...">
+                    <input type="text" id="res-serial" placeholder="Toque para digitar (se a IA falhou)">
                 </div>
                 <div class="form-group">
                     <label>Modelo do Equipamento</label>
-                    <input type="text" id="res-modelo" placeholder="Identificando modelo...">
+                    <input type="text" id="res-modelo" placeholder="Toque para digitar o modelo">
                 </div>
                 <div style="display: flex; gap: 10px;" class="form-group">
                     <div style="flex:1;">
                         <label>Contador P&B</label>
-                        <input type="number" id="res-contador-pb" value="0">
+                        <input type="number" id="res-contador-pb" placeholder="0">
                     </div>
                     <div style="flex:1;">
                         <label>Contador COR</label>
-                        <input type="number" id="res-contador-cor" value="0">
+                        <input type="number" id="res-contador-cor" placeholder="0">
                     </div>
                 </div>
                 <div class="form-group">
                     <label style="color: var(--success); font-weight: bold;">TOTALIZADOR GERAL</label>
-                    <input type="text" id="res-contador-total" style="font-weight: bold; font-size: 1.2rem; color: var(--success);" value="0">
+                    <input type="text" id="res-contador-total" style="font-weight: bold; font-size: 1.2rem; color: var(--success);" placeholder="0">
                 </div>
                 
                 <div style="margin-top: 20px; font-size: 0.9rem; color: var(--primary); font-weight: bold; border-top: 1px solid var(--border); padding-top: 15px;">FOTOS COM AUDITORIA (GPS/DATA):</div>
@@ -230,18 +220,13 @@
         let crmData = []; let configVistoria = { tipo: 'Equipamento', fornecedor: '', lote: 'Avulso' };
         let currentLocation = "Buscando GPS...";
         
-        // SETUP DO BANCO DE DADOS ROBUSTO (IndexedDB)
-        const dbName = "RSI_Database";
-        let db;
+        const dbName = "RSI_Database"; let db;
         const requestDB = indexedDB.open(dbName, 1);
         requestDB.onupgradeneeded = (e) => {
             db = e.target.result;
-            if(!db.objectStoreNames.contains("ativos")) {
-                db.createObjectStore("ativos", { keyPath: "serial" });
-            }
+            if(!db.objectStoreNames.contains("ativos")) db.createObjectStore("ativos", { keyPath: "serial" });
         };
         requestDB.onsuccess = (e) => { db = e.target.result; carregarDadosDoCRM(); };
-        requestDB.onerror = (e) => { console.error("Erro banco de dados nativo", e); };
 
         window.onload = async function() {
             capturarGPS();
@@ -252,8 +237,7 @@
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     pos => { currentLocation = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`; },
-                    err => { currentLocation = "GPS Indisponível/Negado"; },
-                    { enableHighAccuracy: true }
+                    err => { currentLocation = "GPS Indisponível"; }, { enableHighAccuracy: true }
                 );
             }
         }
@@ -294,14 +278,13 @@
             document.getElementById('sidebarOverlay').classList.toggle('show');
         }
 
-        // CARREGA DO INDEXED DB
         function carregarDadosDoCRM() {
             if(!db) return;
             const transaction = db.transaction(["ativos"], "readonly");
             const store = transaction.objectStore("ativos");
             const req = store.getAll();
             req.onsuccess = () => {
-                crmData = req.result.reverse(); // Ordena do mais novo pro mais velho
+                crmData = req.result.reverse();
                 renderizarListaCRM(crmData);
             };
         }
@@ -326,7 +309,6 @@
             renderizarListaCRM(filtrados);
         }
 
-        // SALVA NO INDEXED DB
         function salvarMaquinaNoCRM() {
             const serialNum = document.getElementById('res-serial').value.toUpperCase().trim();
             if(!serialNum || !db) return;
@@ -379,7 +361,7 @@
             if(configVistoria.tipo === 'Lote') {
                 currentStep = 0; fotos = [];
                 document.getElementById('res-serial').value = ''; document.getElementById('res-modelo').value = '';
-                document.getElementById('res-contador-pb').value = '0'; document.getElementById('res-contador-cor').value = '0'; document.getElementById('res-contador-total').value = '0';
+                document.getElementById('res-contador-pb').value = ''; document.getElementById('res-contador-cor').value = ''; document.getElementById('res-contador-total').value = '';
                 document.querySelectorAll('.thumb-box').forEach(box => {
                     box.innerHTML = box.id === 'thumb-0' ? '1. Geral' : box.id === 'thumb-1' ? '2. Teste' : box.id === 'thumb-2' ? '3. Tela' : box.id === 'thumb-3' ? '4. Serial' : '5. Avarias';
                     box.classList.remove('done', 'active');
@@ -416,20 +398,18 @@
             });
         }
 
-        // CAPTURA DA CÂMERA E CARIMBO ANTIFRAUDE (GPS/DATA)
         async function captureStep() {
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth || 1280; canvas.height = video.videoHeight || 720;
             
-            // Desenha a foto da câmera
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Aplica Carimbo Antifraude na foto
+            // Carimbo Antifraude
             ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
             ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
-            ctx.fillStyle = "#2bc473"; // Verde success
+            ctx.fillStyle = "#2bc473";
             ctx.font = "bold 16px Arial";
             const timeStamp = new Date().toLocaleString('pt-BR');
             ctx.fillText(`AUDITORIA RSI | Data: ${timeStamp} | GPS: ${currentLocation}`, 15, canvas.height - 15);
@@ -455,54 +435,71 @@
             }
         }
 
-        // INTELIGÊNCIA: OCR + LEITOR NATIVO DE CÓDIGO DE BARRAS
+        // ====== O NOVO SUPER EXTRATOR DE TEXTOS (OCR) ======
         async function processarImagemComIA(passoIdx, base64Image, canvasEl) {
             const statusBox = document.getElementById('ai-status');
             
             if(passoIdx === 1 || passoIdx === 2) {
                 if (!ocrWorker) return;
                 statusBox.style.display = 'block';
-                statusBox.innerText = "🤖 Extraindo contadores...";
+                statusBox.innerText = "🤖 Extraindo contadores P&B e Color...";
                 const result = await ocrWorker.recognize(base64Image);
                 const textoRaw = result.data.text.toUpperCase();
-                const gerMatch = textoRaw.match(/(?:TOTAL|SUM|GERAL)[:.\s]+([A-Z]*\d[\d.,]{3,})/);
-                if(gerMatch) document.getElementById('res-contador-total').value = gerMatch[1].replace(/[^0-9]/g, '');
-                const pbMatch = textoRaw.match(/(?:B&W|P&B|BLACK|MONO)[:.\s]+([A-Z]*\d[\d.,]{3,})/);
+                
+                // Melhorando P&B (Ignora espaços como "B & W" ou "P & B")
+                const pbMatch = textoRaw.match(/(?:TOTAL\s*DE\s*PB|B\s*&\s*W\s*TOTAL|P\s*&\s*B|B\s*&\s*W|BLACK|MONO)[:.\s]*([A-Z]*\d[\d.,]{3,})/);
                 if(pbMatch) document.getElementById('res-contador-pb').value = pbMatch[1].replace(/[^0-9]/g, '');
-                const colorMatch = textoRaw.match(/(?:COLOR|COLORIDO|COLOR TOTAL)[:.\s]+([A-Z]*\d[\d.,]{3,})/);
+
+                // Melhorando COR (Procura "TOTAL DE COR" ou "COLOR TOTAL")
+                const colorMatch = textoRaw.match(/(?:TOTAL\s*DE\s*COR|COLOR\s*TOTAL|COPIAS\s*COLORIDAS|COLOR)[:.\s]*([A-Z]*\d[\d.,]{3,})/);
                 if(colorMatch) document.getElementById('res-contador-cor').value = colorMatch[1].replace(/[^0-9]/g, '');
+
+                // Tenta achar o Total Geral explicitamente, se não a soma resolve
+                const gerMatch = textoRaw.match(/(?:TOTAL\s*GERAL|TOTAL\s*SUM|GERAL)[:.\s]*([A-Z]*\d[\d.,]{3,})/);
+                if(gerMatch) document.getElementById('res-contador-total').value = gerMatch[1].replace(/[^0-9]/g, '');
+                
                 statusBox.style.display = 'none';
                 processarSomaTotal();
             }
             
             if(passoIdx === 3) {
                 statusBox.style.display = 'block';
-                statusBox.innerText = "🤖 Lendo Código de Barras e Etiqueta...";
+                statusBox.innerText = "🤖 Lendo Etiqueta Traseira...";
                 
-                // 1. Tenta usar o Leitor de Código de Barras Nativo (100% Precisão para Serial)
                 try {
                     if ('BarcodeDetector' in window) {
                         const detector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'qr_code', 'ean_13', 'itf'] });
                         const barcodes = await detector.detect(canvasEl);
                         if(barcodes.length > 0) {
-                            // Pega o código mais longo que achar (geralmente é o Serial)
                             let bestCode = barcodes.sort((a,b) => b.rawValue.length - a.rawValue.length)[0].rawValue;
                             document.getElementById('res-serial').value = bestCode.replace(/[^A-Z0-9]/gi, '');
                         }
                     }
-                } catch(e) { console.log("BarcodeDetector não suportado, usando OCR"); }
+                } catch(e) { console.log("Barcode nativo falhou."); }
 
-                // 2. Roda o OCR para tentar pegar o Modelo da máquina (e Serial como backup)
                 if (ocrWorker) {
                     const result = await ocrWorker.recognize(base64Image);
                     const texto = result.data.text.toUpperCase();
-                    const modeloMatch = texto.match(/(?:MODEL|MOD|MODELO)[:.\s]+([A-Z0-9\s-]{4,12})/);
-                    if(modeloMatch) document.getElementById('res-modelo').value = modeloMatch[1].trim();
                     
-                    // Backup de Serial via texto caso o código de barras não seja lido
+                    // Fallback para modelos comuns (ex: MP C6004SP)
+                    const modeloMatch = texto.match(/(?:MODEL|MOD|MODELO)[:.\s]*([A-Z0-9\s-]{4,12})/);
+                    if(modeloMatch) {
+                        document.getElementById('res-modelo').value = modeloMatch[1].trim();
+                    } else {
+                        const fallbackModelo = texto.match(/(?:MP|IM|PRO|SP|XC|M)\s*[C]?\d{3,4}[A-Z]*/);
+                        if(fallbackModelo) document.getElementById('res-modelo').value = fallbackModelo[0];
+                    }
+                    
+                    // Fallback Serial (Busca qualquer string alfanumerica de 9 a 13 digitos)
                     if(!document.getElementById('res-serial').value) {
-                        const serialMatch = texto.match(/(?:SERIAL|S\/N|SN)[:.\s]+([A-Z0-9]{7,15})/);
-                        if(serialMatch) document.getElementById('res-serial').value = serialMatch[1];
+                        const serialMatch = texto.match(/(?:SERIAL|S\/N|SN|NO)[:.\s]*([A-Z0-9]{7,15})/);
+                        if(serialMatch) {
+                            document.getElementById('res-serial').value = serialMatch[1];
+                        } else {
+                            const palavras = texto.replace(/[^A-Z0-9\n]/g, ' ').split(/\s+/);
+                            const provavelSerial = palavras.find(p => p.length >= 9 && p.length <= 13 && /[A-Z]/.test(p) && /[0-9]/.test(p));
+                            if(provavelSerial) document.getElementById('res-serial').value = provavelSerial;
+                        }
                     }
                 }
                 statusBox.style.display = 'none';
@@ -513,7 +510,8 @@
             const pbVal = parseInt(document.getElementById('res-contador-pb').value) || 0;
             const corVal = parseInt(document.getElementById('res-contador-cor').value) || 0;
             const currentTotal = document.getElementById('res-contador-total').value;
-            if((pbVal > 0 || corVal > 0) && (!currentTotal || currentTotal == 0)) {
+            // Só faz a soma se o OCR não tiver achado a palavra TOTAL escrita, e se já houver algo lido nos menores.
+            if((pbVal > 0 || corVal > 0) && (!currentTotal || currentTotal == "0" || currentTotal == "")) {
                 document.getElementById('res-contador-total').value = pbVal + corVal;
             }
         }
@@ -531,7 +529,7 @@
             document.getElementById('fornecedor-nome').value = ''; document.getElementById('lote-nome').value = '';
             document.getElementById('tipo-entrada').value = 'Equipamento'; alternarCamposLote();
             document.getElementById('res-serial').value = ''; document.getElementById('res-modelo').value = '';
-            document.getElementById('res-contador-pb').value = '0'; document.getElementById('res-contador-cor').value = '0'; document.getElementById('res-contador-total').value = '0';
+            document.getElementById('res-contador-pb').value = ''; document.getElementById('res-contador-cor').value = ''; document.getElementById('res-contador-total').value = '';
             document.querySelectorAll('.thumb-box').forEach(box => {
                 box.innerHTML = box.id === 'thumb-0' ? '1. Geral' : box.id === 'thumb-1' ? '2. Teste' : box.id === 'thumb-2' ? '3. Tela' : box.id === 'thumb-3' ? '4. Serial' : '5. Avarias';
                 box.classList.remove('done', 'active');
@@ -540,12 +538,10 @@
             document.getElementById('step-0').classList.add('active');
         }
 
-        // EXPORTAÇÃO PARA EXCEL (.CSV)
         function exportarExcel() {
             if(crmData.length === 0) return alert("Nenhum dado para exportar.");
             let csv = "Data/Hora,Fornecedor,Lote,Serial,Modelo,PB,Cor,Totalizador\n";
             crmData.forEach(m => {
-                // Prepara as strings para não quebrar a planilha caso haja vírgulas
                 let data = m.data || "Sem data";
                 let forn = (m.fornecedor || "").replace(/,/g, '');
                 let lote = (m.lote || "").replace(/,/g, '');
@@ -553,14 +549,9 @@
                 let mod = (m.modelo || "").replace(/,/g, '');
                 csv += `"${data}","${forn}","${lote}","${ser}","${mod}","${m.pb}","${m.cor}","${m.total}"\n`;
             });
-            
             const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `Contadores_Lote_RSI.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+            link.download = `Contadores_Lote_RSI.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
     </script>
 </body>
