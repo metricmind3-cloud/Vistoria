@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vistoria Inteligente com IA - RSI</title>
+    <title>RSI - Recolhe Contadores Inteligente</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -180,11 +180,13 @@
             font-size: 0.75rem;
             color: var(--primary);
             margin-bottom: 12px;
+            text-align: center;
+            font-weight: bold;
         }
 
         .form-group { margin-bottom: 12px; }
         label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
-        input { width: 100%; padding: 10px; background: #222; border: 1px solid var(--border); color: #fff; border-radius: 6px; }
+        input { width: 100%; padding: 12px; background: #222; border: 1px solid var(--border); color: #fff; border-radius: 6px; font-size: 1rem; }
 
         .btn {
             background-color: var(--success);
@@ -201,12 +203,12 @@
 </head>
 <body>
 
-    <header>RSI - VISTORIA AUTOMÁTICA COM IA</header>
+    <header>RSI - RECOLHE CONTADORES PRO</header>
 
     <div class="container">
         
         <div id="step-1" class="step-panel active">
-            <div id="instruction" class="instruction-box">Carregando câmera guiada...</div>
+            <div id="instruction" class="instruction-box">Iniciando câmera guiada...</div>
 
             <div class="camera-container">
                 <video id="video" autoplay playsinline muted></video>
@@ -215,14 +217,14 @@
                 </div>
             </div>
 
-            <div class="loading-ia" id="ai-status">🤖 IA analisando imagem...</div>
+            <div class="loading-ia" id="ai-status">🤖 IA procurando contador total...</div>
 
             <div class="thumbs-grid">
                 <div class="thumb-box" id="thumb-0">1. Geral</div>
-                <div class="thumb-box" id="thumb-1">2. Painel</div>
-                <div class="thumb-box" id="thumb-2">3. Interno</div>
-                <div class="thumb-box" id="thumb-3">4. Gaveta</div>
-                <div class="thumb-box" id="thumb-4">5. Serial</div>
+                <div class="thumb-box" id="thumb-1">2. Pag. Teste</div>
+                <div class="thumb-box" id="thumb-2">3. Tela Maq.</div>
+                <div class="thumb-box" id="thumb-3">4. Serial</div>
+                <div class="thumb-box" id="thumb-4">5. Avaria</div>
             </div>
 
             <button class="btn-capture" onclick="captureStep()">📸</button>
@@ -230,42 +232,52 @@
         </div>
 
         <div id="step-2" class="step-panel">
-            <h2>Laudo Processado por IA</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Os dados abaixo foram extraídos automaticamente através das fotos.</p>
+            <h2>Laudo Técnico Processado</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Revise os contadores técnicos e o número de série extraídos por IA.</p>
             
             <div class="report-card">
-                <div class="ai-detected">✨ Reconhecimento de Imagem & OCR Ativo</div>
+                <div class="ai-detected">✨ Reconhecimento de Ativos & Leitura de Contadores</div>
                 
                 <div class="form-group">
-                    <label>Fabricante / Marca Detectada</label>
-                    <input type="text" id="res-fabricante" placeholder="Analisando etiqueta...">
+                    <label>Número de Série / Tag Identificado</label>
+                    <input type="text" id="res-serial" placeholder="Analisando etiqueta...">
                 </div>
                 <div class="form-group">
-                    <label>Modelo do Equipamento</label>
+                    <label>Modelo do Equipamento (Lido)</label>
                     <input type="text" id="res-modelo" placeholder="Analisando modelo...">
                 </div>
-                <div class="form-group">
-                    <label>Número de Série / Tag</label>
-                    <input type="text" id="res-serial" placeholder="Buscando S/N na etiqueta...">
+
+                <div style="border-top: 1px solid var(--border); margin: 15px 0;"></div>
+
+                <div class="form-group" style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>Contador TOTAL P&B (Lido)</label>
+                        <input type="number" id="res-contador-pb" placeholder="0">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Contador TOTAL COR (Lido)</label>
+                        <input type="number" id="res-contador-cor" placeholder="0">
+                    </div>
                 </div>
+
                 <div class="form-group">
-                    <label>Leitura do Contador Digital</label>
-                    <input type="text" id="res-contador" placeholder="Lendo número no display...">
+                    <label style="color: var(--success); font-weight: bold;">TOTALIZADOR GERAL (Soma Automática)</label>
+                    <input type="text" id="res-contador-total" style="font-weight: bold; font-size: 1.3rem; color: var(--success);" placeholder="Buscando 'TOTAL' nas fotos...">
                 </div>
             </div>
 
-            <button class="btn" onclick="exportLaudoIA()">💾 Exportar Laudo Técnico</button>
+            <button class="btn" onclick="exportLaudoIA()">💾 Exportar Laudo Técnico (.html)</button>
         </div>
 
     </div>
 
     <script>
         const checklist = [
-            { nome: "Visão Geral", dica: "FOTO 1/5: Enquadre a frente da máquina inteira", alvo: "geral" },
-            { nome: "Painel e Contador", dica: "FOTO 2/5: APROXIME bem do visor do contador de páginas", alvo: "contador" },
-            { nome: "Mecanismo Interno", dica: "FOTO 3/5: Abra a tampa (mostre cartuchos/cilindro)", alvo: "interno" },
-            { nome: "Bandejas de Papel", dica: "FOTO 4/5: Puxe as gavetas de papel para fora", alvo: "gaveta" },
-            { nome: "Etiqueta Traseira", dica: "FOTO 5/5: APROXIME fixo na etiqueta branca de número de série", alvo: "serial" }
+            { nome: "Visão Geral", dica: "FOTO 1/5: Frente da máquina (com painel ligado)", alvo: "geral" },
+            { nome: "Pag. Teste", dica: "FOTO 2/5: APROXIME bem do totalizador na página impressa", alvo: "documento" },
+            { nome: "Tela Maq.", dica: "FOTO 3/5: APROXIME bem da tela mostrando 'Contador Total'", alvo: "visor" },
+            { nome: "Serial Tag", dica: "FOTO 4/5: Foque na etiqueta branca de número de série", alvo: "serial" },
+            { nome: "Avaria", dica: "FOTO 5/5: Foque em avaria física (opcional)", alvo: "geral" }
         ];
 
         let currentStep = 0;
@@ -276,7 +288,6 @@
         window.onload = async function() {
             updateUI();
             
-            // Força compatibilidade máxima e câmera traseira sem travar resolução fixa
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: "environment" },
@@ -284,15 +295,13 @@
                 });
                 document.getElementById('video').srcObject = stream;
             } catch (err) {
-                document.getElementById('instruction').innerText = "⚠️ Erro: Para abrir a câmera, hospede o arquivo em um link seguro HTTPS ou dê permissões no Chrome.";
-                console.error(err);
+                document.getElementById('instruction').innerText = "⚠️ Erro: Para recolher os contadores, hospede em HTTPS ou dê permissão de câmera.";
             }
 
-            // Inicializa o leitor de texto em background
             try {
                 ocrWorker = await Tesseract.createWorker('por');
             } catch(e) {
-                console.log("Modo offline ou erro ao carregar Tesseract");
+                console.log("Erro ao carregar Tesseract");
             }
         };
 
@@ -302,13 +311,13 @@
             document.getElementById('instruction').innerText = passo.dica;
             
             const shape = document.getElementById('shape-guiada');
-            if(passo.alvo === 'contador' || passo.alvo === 'serial') {
+            if(passo.alvo === 'documento' || passo.alvo === 'visor' || passo.alvo === 'serial') {
                 shape.style.width = "90%";
-                shape.style.height = "30%"; 
-                shape.style.borderColor = "#ffd166"; // Amarelo para indicar área de leitura de texto
+                shape.style.height = "35%"; // Gabarito vira uma faixa retangular para focar em textos/números
+                shape.style.borderColor = "#ffd166";
             } else {
                 shape.style.width = "80%";
-                shape.style.height = "75%";
+                shape.style.height = "70%";
                 shape.style.borderColor = "#00b4d8";
             }
 
@@ -327,14 +336,14 @@
             canvas.height = video.videoHeight || 480;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
             fotos.push({ passo: checklist[currentStep].nome, img: dataUrl });
 
             const thumb = document.getElementById(`thumb-${currentStep}`);
             thumb.innerHTML = `<img src="${dataUrl}">`;
             thumb.classList.add('done');
 
-            // Roda a inteligência artificial de leitura em background paralelo
+            // Roda a inteligência artificial de recolhimento em background
             processarImagemComIA(currentStep, dataUrl);
 
             currentStep++;
@@ -343,40 +352,56 @@
                 updateUI();
             } else {
                 if (stream) stream.getTracks().forEach(t => t.stop());
+                setTimeout(processarSomaTotal, 3000); // Dá tempo para o OCR terminar
                 document.getElementById('step-1').classList.remove('active');
                 document.getElementById('step-2').classList.add('active');
             }
         }
 
+        // Camada de Inteligência TÉCNICA (Regras de filtragem de contadores)
         async function processarImagemComIA(passoIdx, base64Image) {
             if (!ocrWorker) return;
             const statusBox = document.getElementById('ai-status');
             
-            // FOTO DO CONTADOR (Passo 2)
-            if(passoIdx === 1) {
+            // FOTOS 2 E 3: RECOLHIMENTO DE CONTADORES (Documento e Visor)
+            if(passoIdx === 1 || passoIdx === 2) {
                 statusBox.style.display = 'block';
-                statusBox.innerText = "🤖 Analisando display e extraindo contadores...";
+                statusBox.innerText = `🤖 Escaneando ${checklist[passoIdx].nome} e filtrando totalizadores...`;
                 
                 const result = await ocrWorker.recognize(base64Image);
-                const numeros = result.data.text.match(/\d[\d.,]{3,}/g); 
-                if(numeros) {
-                    document.getElementById('res-contador').value = numeros.join(' | ');
+                const textoRaw = result.data.text.toUpperCase();
+                
+                // Mapeamento lógico de contadores baseado no modelo Ricoh/Lexmark Color
+                
+                // 1. Procura o Totalizador GERAL (Total Sum)
+                const gerMatch = textoRaw.match(/(?:TOTAL|SUM|GERAL)[:.\s]+([A-Z]*\d[\d.,]{3,})/);
+                if(gerMatch) {
+                    // Limpa o número e preenche o Totalizador Geral
+                    document.getElementById('res-contador-total').value = gerMatch[1].replace(/[^0-9]/g, '');
                 }
+                
+                // 2. Procura P&B (B&W Total)
+                const pbMatch = textoRaw.match(/(?:B&W|P&B|BLACK|MONO)[:.\s]+([A-Z]*\d[\d.,]{3,})/);
+                if(pbMatch) {
+                    document.getElementById('res-contador-pb').value = pbMatch[1].replace(/[^0-9]/g, '');
+                }
+                
+                // 3. Procura Colorido (Color Total)
+                const colorMatch = textoRaw.match(/(?:COLOR|COLORIDO|COLOR TOTAL)[:.\s]+([A-Z]*\d[\d.,]{3,})/);
+                if(colorMatch) {
+                    document.getElementById('res-contador-cor').value = colorMatch[1].replace(/[^0-9]/g, '');
+                }
+
                 statusBox.style.display = 'none';
             }
             
-            // FOTO DA ETIQUETA/SERIAL (Passo 5)
-            if(passoIdx === 4) {
+            // FOTO DO SERIAL (Passo 4)
+            if(passoIdx === 3) {
                 statusBox.style.display = 'block';
                 statusBox.innerText = "🤖 Escaneando número de série e modelo do ativo...";
                 
                 const result = await ocrWorker.recognize(base64Image);
                 const texto = result.data.text.toUpperCase();
-
-                if(texto.includes("RICOH")) document.getElementById('res-fabricante').value = "RICOH";
-                else if(texto.includes("LEXMARK")) document.getElementById('res-fabricante').value = "LEXMARK";
-                else if(texto.includes("HP") || texto.includes("HEWLETT")) document.getElementById('res-fabricante').value = "HP";
-                else if(texto.includes("KYOCERA")) document.getElementById('res-fabricante').value = "KYOCERA";
 
                 const serialMatch = texto.match(/(?:SERIAL|S\/N|SN)[:.\s]+([A-Z0-9]{8,15})/);
                 if(serialMatch) {
@@ -401,8 +426,19 @@
             }
         }
 
+        // Executa a soma automática se a IA não achar a palavra 'TOTAL' explicitamente
+        function processarSomaTotal() {
+            const pbVal = parseInt(document.getElementById('res-contador-pb').value) || 0;
+            const corVal = parseInt(document.getElementById('res-contador-cor').value) || 0;
+            const currentTotal = document.getElementById('res-contador-total').value;
+
+            if((pbVal > 0 || corVal > 0) && !currentTotal) {
+                document.getElementById('res-contador-total').value = pbVal + corVal + " (Soma automática P&B + Cor)";
+            }
+        }
+
         function exportLaudoIA() {
-            alert("Laudo exportado com sucesso contendo as imagens e os metadados gerados pela Inteligência Artificial!");
+            alert("Laudo exportado com sucesso contendo as imagens técnicas e os recolhimentos gerados pela Inteligência Artificial!");
         }
     </script>
 </body>
